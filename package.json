@@ -1,0 +1,43 @@
+{
+  "name": "dsh-manager",
+  "productName": "DeepSeek Harness Manager",
+  "version": "0.1.0",
+  "description": "Windows desktop manager for the deepseek-harness source repository: git versions, updates, builds, and launching the dsh web UI.",
+  "main": "src/main.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "npm install --no-audit --no-fund && node scripts/gen-icon.mjs && npm run dist",
+    "dist": "electron-builder --win portable nsis",
+    "dist:portable": "electron-builder --win portable",
+    "dist:installer": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^25.1.8",
+    "sharp": "^0.35.3"
+  },
+  "build": {
+    "appId": "com.dsh.manager",
+    "productName": "DeepSeek Harness Manager",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/icon.png",
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "DeepSeek Harness Manager"
+    }
+  }
+}

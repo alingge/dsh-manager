@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
+  <title>DeepSeek Harness Manager</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 顶部标题栏 -->
+  <header class="app-header">
+    <div class="app-title">🛠 DeepSeek Harness Manager</div>
+    <div class="status-bar" id="statusBar" title="当前操作状态">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">就绪</span>
+    </div>
+  </header>
+
+  <!-- 结果横幅容器（fixed 右上角） -->
+  <div id="bannerHost" class="banner-host"></div>
+
+  <!-- 导航 -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="overview">概览</button>
+    <button class="tab-btn" data-tab="git">Git</button>
+    <button class="tab-btn" data-tab="build">构建</button>
+    <button class="tab-btn" data-tab="run">运行</button>
+    <button class="tab-btn" data-tab="settings">设置</button>
+    <button class="tab-btn" data-tab="help">使用说明</button>
+  </nav>
+
+  <main class="tab-main">
+    <!-- ============ 概览 ============ -->
+    <section id="tab-overview" class="tab-pane active">
+      <h2>概览</h2>
+      <div id="overviewRepoMissing" class="card warn-card hidden">
+        <p>尚未配置源码仓库目录。请到「设置」页选择 deepseek-harness 源码目录。</p>
+        <button class="btn" id="btnGoSettings">去设置</button>
+      </div>
+      <div id="overviewContent" class="hidden">
+        <div class="card">
+          <div class="kv-row"><span class="kv-key">仓库路径</span><span class="kv-val" id="ovRepo">-</span>
+            <button class="btn small" id="btnOpenRepo">打开仓库目录</button>
+          </div>
+          <div class="kv-row"><span class="kv-key">当前分支</span><span class="kv-val mono" id="ovBranch">-</span></div>
+          <div class="kv-row"><span class="kv-key">HEAD</span><span class="kv-val mono" id="ovHead">-</span></div>
+          <div class="kv-row"><span class="kv-key">源码版本</span><span class="kv-val mono" id="ovVersion">-</span></div>
+          <div class="kv-row"><span class="kv-key">与远程同步</span><span class="kv-val" id="ovSync">-</span></div>
+          <div class="kv-row"><span class="kv-key">工作区</span><span class="kv-val" id="ovDirty">-</span></div>
+          <div class="kv-row"><span class="kv-key">构建产物</span><span class="kv-val" id="ovArtifacts">-</span></div>
+        </div>
+        <div class="card actions">
+          <button class="btn primary" id="btnFetchOverview">更新（检查远程）</button>
+          <button class="btn" id="btnOpenDshHome">打开 dsh 数据目录</button>
+          <button class="btn danger" id="btnSyncUpstream">与官方保持一致（回滚）</button>
+        </div>
+        <div class="card note">
+          <b>提示：</b>「更新」= 从 GitHub 获取最新提交信息（不改动文件）；显示「落后 N」后到 Git 页点「拉取」真正升级。
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Git ============ -->
+    <section id="tab-git" class="tab-pane">
+      <h2>Git 版本管理</h2>
+      <div class="card">
+        <div class="kv-row"><span class="kv-key">当前分支</span><span class="kv-val mono" id="gitBranch">-</span></div>
+        <div class="kv-row"><span class="kv-key">工作区</span><span class="kv-val" id="gitDirty">-</span></div>
+        <div class="actions">
+          <button class="btn" id="btnRefresh">刷新</button>
+          <button class="btn" id="btnFetch">更新（fetch）</button>
+          <button class="btn primary" id="btnPull">拉取（pull --ff-only）</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>历史版本（release 锚点）</h3>
+        <p class="muted small">来源：提交信息 release(dsh): x.y.z，点击「切换」可检出对应版本。</p>
+        <table class="version-table">
+          <thead><tr><th>版本</th><th>日期</th><th>提交</th><th>操作</th></tr></thead>
+          <tbody id="versionList"></tbody>
+        </table>
+        <div id="versionEmpty" class="muted hidden">未找到 release 版本记录。</div>
+      </div>
+    </section>
+
+    <!-- ============ 构建 ============ -->
+    <section id="tab-build" class="tab-pane">
+      <h2>构建</h2>
+      <div class="card">
+        <p class="muted small">构建日志显示在窗口底部「日志面板」（实时滚动，可折叠）。任何操作结束都会弹出结果横幅。</p>
+        <div class="actions">
+          <button class="btn" id="btnInstall">安装依赖</button>
+          <button class="btn primary" id="btnBuild">一键构建</button>
+          <button class="btn" id="btnClean">清理</button>
+          <button class="btn danger" id="btnCancelBuild">取消当前操作</button>
+        </div>
+        <div id="buildSummary" class="summary hidden"></div>
+      </div>
+      <div class="card note">
+        <b>典型流程：</b>首次使用：安装依赖 → 一键构建；日常更新：拉取 → 一键构建；出问题：清理 → 安装依赖 → 一键构建。
+      </div>
+    </section>
+
+    <!-- ============ 运行 ============ -->
+    <section id="tab-run" class="tab-pane">
+      <h2>运行 dsh web</h2>
+      <div class="card">
+        <div class="kv-row"><span class="kv-key">状态</span><span class="kv-val" id="runState"><span class="pill gray">已停止</span></span></div>
+        <div class="kv-row"><span class="kv-key">地址</span><span class="kv-val mono" id="runUrl">-</span></div>
+        <div class="kv-row"><span class="kv-key">端口</span><span class="kv-val mono" id="runPort">-</span></div>
+        <div class="actions">
+          <button class="btn primary" id="btnStartDsh">启动</button>
+          <button class="btn" id="btnOpenDshWindow" disabled>打开桌面窗口</button>
+          <button class="btn" id="btnOpenDshBrowser" disabled>在浏览器打开</button>
+          <button class="btn danger" id="btnStopDsh" disabled>停止</button>
+        </div>
+        <div id="runSummary" class="summary hidden"></div>
+      </div>
+      <div class="card note">
+        <b>说明：</b>启动时自动检查 Node 版本与构建产物，使用空闲端口（不与现有实例冲突）。关闭 dsh 窗口或点「停止」即停止服务。
+      </div>
+    </section>
+
+    <!-- ============ 设置 ============ -->
+    <section id="tab-settings" class="tab-pane">
+      <h2>设置</h2>
+      <div class="card">
+        <div class="form-row">
+          <label>源码仓库路径</label>
+          <div class="row-inline">
+            <input type="text" id="setRepoPath" placeholder="如 E:\deepseek-harness\deepseek-harness" />
+            <button class="btn small" id="btnChooseRepo">浏览…</button>
+          </div>
+          <div class="hint">deepseek-harness 源码所在目录（必须含 package.json 和 .git）</div>
+        </div>
+        <div class="form-row">
+          <label>Node 路径（可留空用系统 PATH）</label>
+          <input type="text" id="setNodePath" placeholder="node" />
+        </div>
+        <div class="form-row">
+          <label>DSH_HOME 数据目录（可留空用默认 C:\Users\&lt;你&gt;\.dsh）</label>
+          <input type="text" id="setDshHome" placeholder="如 C:\Users\aling\.dsh" />
+        </div>
+        <div class="form-row">
+          <label>工作目录（dsh 会话的 workspace 根，可留空=仓库根）</label>
+          <input type="text" id="setWorkspacePath" placeholder="留空则使用仓库根目录" />
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="btnSaveSettings">保存设置</button>
+        </div>
+        <div id="settingsSaved" class="summary hidden"></div>
+      </div>
+    </section>
+
+    <!-- ============ 使用说明 ============ -->
+    <section id="tab-help" class="tab-pane">
+      <h2>使用说明</h2>
+      <div class="card">
+        <div class="row-inline">
+          <input type="text" id="helpSearch" placeholder="搜索说明关键词，如：回滚 / 拉取 / 构建" />
+        </div>
+      </div>
+      <div id="helpBody" class="help-body"><!-- 由 renderer.js 注入详细说明 --></div>
+    </section>
+  </main>
+
+  <!-- 底部日志面板 -->
+  <footer class="log-panel">
+    <div class="log-header" id="logHeader">
+      <span>📄 日志面板</span>
+      <span class="log-tools">
+        <span id="logLineCount" class="muted">0 行</span>
+        <button class="btn tiny" id="btnCopyLog">复制全部</button>
+        <button class="btn tiny" id="btnClearLog">清空</button>
+        <button class="btn tiny" id="btnToggleLog">收起 ▾</button>
+      </span>
+    </div>
+    <div class="log-body" id="logBody"></div>
+  </footer>
+
+  <!-- 自定义模态框（版本切换 / 回滚确认） -->
+  <div id="modalMask" class="modal-mask hidden">
+    <div class="modal">
+      <h3 id="modalTitle">确认</h3>
+      <div id="modalBody" class="modal-body"></div>
+      <div class="modal-actions">
+        <button class="btn" id="modalCancel">取消</button>
+        <button class="btn primary" id="modalOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
