@@ -65,3 +65,10 @@ dsh-desktop/
 │   └── renderer/         # 渲染层（index.html / style.css / renderer.js）
 └── release/              # 打包产物（electron-builder 输出）
 ```
+
+## License
+
+本项目基于 [MIT License](LICENSE) 开源，**免费使用、自由修改与分发**（保留版权声明即可）。
+
+- 管理器外壳为本项目原创代码（MIT）
+- 所管理的 [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 官方源码同样为 [MIT](https://github.com/deepseek-ai/deepseek-harness/blob/main/LICENSE) 协议
