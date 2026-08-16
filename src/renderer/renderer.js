@@ -193,6 +193,43 @@ function openCheckoutModal(v) {
   })
 }
 
+/* ================= 分支渲染与切换 ================= */
+function renderBranches(list) {
+  const el = $('branchList')
+  if (!el) return
+  if (!list || !list.length) { el.innerHTML = '<span class="muted">无分支信息</span>'; return }
+  el.innerHTML = ''
+  list.forEach((b) => {
+    const row = document.createElement('div')
+    row.className = 'branch-row' + (b.current ? ' current' : '')
+    const nameEl = document.createElement('span')
+    nameEl.className = 'mono'
+    nameEl.textContent = (b.remote ? '🌐 ' : '🌿 ') + b.name + (b.current ? '（当前）' : '')
+    row.appendChild(nameEl)
+    if (!b.current) {
+      const btn = document.createElement('button')
+      btn.className = 'btn tiny'
+      btn.textContent = '切换'
+      btn.addEventListener('click', () => openBranchModal(b))
+      row.appendChild(btn)
+    }
+    el.appendChild(row)
+  })
+}
+function openBranchModal(b) {
+  const ref = b.remote ? b.name.replace(/^remotes\/[^/]+\//, '') : b.name
+  const html = '<p>切换到分支 <b class="mono">' + ref + '</b>？</p>' +
+    '<p style="color:var(--muted)">切换前会检查工作区是否有未提交改动；有改动时会拒绝并提示。</p>'
+  openModal('切换分支', html).then(async (ok) => {
+    if (!ok) return
+    setStatus('正在切换分支 ' + ref + '…', 'busy')
+    const res = await dshManager.checkout(ref, '')
+    if (res.ok) banner('success', '已切换到分支 ' + ref)
+    else banner('error', '切换失败', res.error)
+    refreshAll()
+  })
+}
+
 function openSyncModal() {
   const html =
     '<p style="color:var(--yellow)"><b>⚠ 危险操作</b></p>' +
@@ -301,6 +338,8 @@ async function refreshAll() {
   }
   const vRes = await dshManager.getVersions()
   if (vRes.ok) { state.versions = vRes.data || []; renderVersions() }
+  const bRes = await dshManager.getBranches()
+  if (bRes.ok) renderBranches(bRes.data)
   renderRun()
 }
 
@@ -308,9 +347,42 @@ async function refreshAll() {
 function bind(btnId, handler) { $(btnId).addEventListener('click', handler) }
 
 // 概览页
-bind('btnGoSettings', () => document.querySelector('.tab-btn[data-tab=settings]').click())
+bind('btnChooseRepoMissing', async () => {
+  const repo = await dshManager.chooseRepo()
+  if (repo) { $('cloneTarget').value = repo; refreshAll() }
+})
+bind('btnCloneRepo', withBusy(['btnCloneRepo', 'btnChooseRepoMissing'], async () => {
+  const target = $('cloneTarget').value.trim()
+  if (!target) { banner('error', '请先填写克隆目标目录'); return }
+  const ok = await openModal('一键克隆官方源码', '<p>将从 <b>https://github.com/deepseek-ai/deepseek-harness</b> 完整克隆到：</p>' +
+    '<p class="mono">' + target + '</p>' +
+    '<p>完整克隆保留全部历史版本（供版本切换），视网速约需几分钟。进度显示在底部日志面板。</p>' +
+    '<p style="color:var(--yellow)">目标目录需为空或不存在。</p>')
+  if (!ok) return
+  setStatus('正在克隆官方源码…', 'busy')
+  const res = await dshManager.cloneRepo(target)
+  if (res.ok) banner('success', '克隆完成', '仓库已就绪：' + res.data)
+  else banner('error', '克隆失败', res.error)
+  refreshAll()
+}))
 bind('btnOpenRepo', () => dshManager.openRepo())
 bind('btnOpenDshHome', () => dshManager.openDshHome())
+bind('btnCheckUpdate', async () => {
+  setStatus('正在检查更新…', 'busy')
+  const res = await dshManager.checkUpdate()
+  setStatus('就绪')
+  if (!res.ok) { banner('error', '检查更新失败', res.error); return }
+  const d = res.data
+  if (d.hasUpdate) {
+    openModal('发现新版本 v' + d.latest, '<p>当前版本 <b>v' + d.current + '</b>，最新 <b>v' + d.latest + '</b></p>' +
+      '<p>更新说明：</p><p class="mono" style="white-space:pre-wrap">' + (d.notes || '（无说明）') + '</p>' +
+      '<p style="color:var(--muted)">点击「确定」打开 GitHub Releases 页面下载新版。</p>').then((ok) => {
+      if (ok) window.open(d.url, '_blank')
+    })
+  } else {
+    banner('success', '已是最新版本', '当前 v' + d.current)
+  }
+})
 bind('btnFetchOverview', withBusy(['btnFetchOverview', 'btnFetch'], async () => {
   const res = await dshManager.gitFetch()
   if (res.ok) {
@@ -503,5 +575,11 @@ async function init() {
   $('setWorkspacePath').value = s.workspacePath || ''
   await refreshAll()
   setStatus('就绪')
+  // 启动后静默检查一次更新（失败不打扰）
+  dshManager.checkUpdate().then((res) => {
+    if (res.ok && res.data.hasUpdate) {
+      banner('success', '发现新版本 v' + res.data.latest, '当前 v' + res.data.current + '，可在概览页「检查更新」查看')
+    }
+  }).catch(() => { /* 静默 */ })
 }
 init()

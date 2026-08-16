@@ -93,6 +93,12 @@ h3 { font-size: 15px; margin: 4px 0 8px; }
 .form-row input:focus { outline: none; border-color: var(--accent); }
 .form-row .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
 
+/* ---------- 分支列表 ---------- */
+.branch-list { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+.branch-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; border-radius: 7px; background: var(--bg3); }
+.branch-row.current { border-left: 3px solid var(--green); }
+.branch-row:hover { background: #363652; }
+
 /* ---------- 版本表 ---------- */
 .version-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .version-table th, .version-table td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }

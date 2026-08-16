@@ -9,7 +9,10 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, '..')
-const SRC = 'E:/deepseek-harness/deepseek-harness/apps/web/dist/favicon.svg'
+// 优先读项目内的图标源（CI/别人机器可用）；找不到再回退到本机官方源码路径
+const LOCAL_SRC = path.join(ROOT, 'assets', 'favicon-source.svg')
+const OFFICIAL_SRC = 'E:/deepseek-harness/deepseek-harness/apps/web/dist/favicon.svg'
+const SRC = fs.existsSync(LOCAL_SRC) ? LOCAL_SRC : OFFICIAL_SRC
 
 let svg = fs.readFileSync(SRC, 'utf8')
 // 把暗色媒体查询里的白色规则改为全局生效（logo 变白），不破坏任何标签结构

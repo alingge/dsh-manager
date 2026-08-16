@@ -13,11 +13,14 @@ const api = {
   // 状态
   getStatus: () => ipcRenderer.invoke('mgr:getStatus'),
   getVersions: () => ipcRenderer.invoke('mgr:getVersions'),
+  getBranches: () => ipcRenderer.invoke('mgr:getBranches'),
   // Git
   gitFetch: () => ipcRenderer.invoke('mgr:fetch'),
   gitPull: () => ipcRenderer.invoke('mgr:pull'),
   checkout: (ref, branch) => ipcRenderer.invoke('mgr:checkout', ref, branch),
   syncToUpstream: () => ipcRenderer.invoke('mgr:syncToUpstream'),
+  cloneRepo: (targetDir) => ipcRenderer.invoke('mgr:cloneRepo', targetDir),
+  checkUpdate: () => ipcRenderer.invoke('mgr:checkUpdate'),
   // 构建
   runInstall: () => ipcRenderer.invoke('mgr:runInstall'),
   runBuild: () => ipcRenderer.invoke('mgr:runBuild'),

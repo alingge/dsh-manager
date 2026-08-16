@@ -140,6 +140,25 @@ async function gitCheckout(ref, newBranch) {
   if (dirty) throw new Error('工作区有未提交改动，请先提交或 stash 后再切换')
   return newBranch ? gitRun(['checkout', '-b', newBranch, ref]) : gitRun(['checkout', ref])
 }
+/** 分支列表：本地（当前标 *）+ 远程，供 Git 页切换分支 */
+function getBranches() {
+  const r = gitSync(['branch', '-a', '--no-color'])
+  if (!r.ok) return []
+  return r.out.split('\n').filter(Boolean).map((line) => {
+    const current = line.trimStart().startsWith('*')
+    const name = line.replace(/^\*\s+/, '').trim()
+    return { name, current, remote: name.startsWith('remotes/') }
+  })
+}
+/** 一键克隆官方源码（完整 clone，保留历史版本供切换） */
+async function gitCloneRepo(targetDir) {
+  if (fs.existsSync(path.join(targetDir, '.git'))) throw new Error('目标目录已是 git 仓库，请选择其他目录')
+  fs.mkdirSync(path.dirname(targetDir), { recursive: true })
+  await gitRun(['clone', 'https://github.com/deepseek-ai/deepseek-harness', targetDir])
+  settings.repoPath = targetDir
+  saveSettings()
+  return targetDir
+}
 /**
  * 回滚：丢弃自己的改动，与官方保持一致。
  * 安全设计：先自动创建备份分支（可反悔），再切到 master 并 reset --hard origin/master。
@@ -247,6 +266,36 @@ function openDshWindow() {
 }
 function openDshBrowser() { if (dsh.url) shell.openExternal(dsh.url) }
 
+/* ================= 检查更新 ================= */
+const APP_VERSION = (() => {
+  try { return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version || '0.0.0' } catch { return '0.0.0' }
+})()
+function cmpVersion(a, b) {
+  const pa = String(a).replace(/^v/, '').split('.').map(Number)
+  const pb = String(b).replace(/^v/, '').split('.').map(Number)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0; const y = pb[i] || 0
+    if (x !== y) return x > y ? 1 : -1
+  }
+  return 0
+}
+async function checkUpdate() {
+  const res = await fetch('https://api.github.com/repos/alingge/dsh-manager/releases/latest', {
+    headers: { 'User-Agent': 'dsh-manager', Accept: 'application/vnd.github+json' },
+    signal: AbortSignal.timeout(10000),
+  })
+  if (!res.ok) throw new Error('检查更新失败：GitHub API 返回 ' + res.status)
+  const rel = await res.json()
+  const latest = String(rel.tag_name || '').replace(/^v/, '')
+  return {
+    hasUpdate: cmpVersion(latest, APP_VERSION) > 0,
+    current: APP_VERSION,
+    latest,
+    url: rel.html_url,
+    notes: (rel.body || '').slice(0, 600),
+  }
+}
+
 /* ================= IPC ================= */
 function registerIpc() {
   // 统一包装：捕获异常返回 { ok:false, error }，并推送红色横幅
@@ -263,6 +312,9 @@ function registerIpc() {
   })
   ipcMain.handle('mgr:getStatus', wrap(getStatus))
   ipcMain.handle('mgr:getVersions', wrap(getVersions))
+  ipcMain.handle('mgr:getBranches', wrap(getBranches))
+  ipcMain.handle('mgr:cloneRepo', (_e, targetDir) => wrap(() => gitCloneRepo(targetDir))())
+  ipcMain.handle('mgr:checkUpdate', wrap(checkUpdate))
   ipcMain.handle('mgr:fetch', wrap(gitFetch))
   ipcMain.handle('mgr:pull', wrap(async () => {
     const d = await checkDirtyForPull()
