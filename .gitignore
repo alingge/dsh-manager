@@ -1,5 +1,10 @@
 node_modules/
-release/
 dist/
 *.log
 .DS_Store
+
+# 打包中间产物（不提交）；仅提交最终的两个 exe
+release/win-unpacked/
+release/.icon-ico/
+release/*.blockmap
+release/builder-debug.yml
