@@ -2,7 +2,7 @@
 
 [中文](README.md) | English
 
-![Platform](https://img.shields.io/badge/Platform-Windows_10%2F11-0078D6) ![Tech](https://img.shields.io/badge/Electron-37-47848F) ![dsh](https://img.shields.io/badge/dsh-0.1.0--rc.5-4CC38A) ![Release](https://img.shields.io/badge/Release-portable_%2B_installer-orange)
+![Platform](https://img.shields.io/badge/Platform-Windows_10%2F11-0078D6) ![Tech](https://img.shields.io/badge/Electron-37-47848F) ![dsh](https://img.shields.io/badge/dsh-0.1.0--rc.5-4CC38A) ![Release](https://img.shields.io/badge/Release-portable_%2B_installer-orange) ![CI](https://img.shields.io/github/actions/workflow/status/alingge/dsh-manager/build.yml)
 
 > **A Windows desktop version of DeepSeek Harness** — manage the official source repository visually, no command line required:
 > **git version switching · source updates · one-click build · launch the dsh web UI**, all by clicking buttons.
