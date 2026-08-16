@@ -1,7 +1,9 @@
-# DeepSeek Harness Manager
+# 🖥️ DeepSeek Harness — Windows 桌面版管理器
 
-Windows 桌面管理器，用于管理 deepseek-harness 官方源码仓库：
-**git 版本查看/切换、源码更新、一键构建、启动 dsh web 界面**。
+![平台](https://img.shields.io/badge/平台-Windows_10%2F11-0078D6) ![技术](https://img.shields.io/badge/Electron-37-47848F) ![dsh](https://img.shields.io/badge/dsh-0.1.0--rc.5-4CC38A) ![发布](https://img.shields.io/badge/发布-portable_%2B_installer-orange)
+
+> **DeepSeek Harness 的 Windows 桌面版** —— 不用记命令行，可视化地管理官方源码仓库：
+> **git 版本查看/切换 · 源码更新 · 一键构建 · 启动 dsh web 界面**，全部点按钮完成。
 
 ## 功能
 
