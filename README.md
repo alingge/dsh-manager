@@ -5,6 +5,38 @@
 > **DeepSeek Harness 的 Windows 桌面版** —— 不用记命令行，可视化地管理官方源码仓库：
 > **git 版本查看/切换 · 源码更新 · 一键构建 · 启动 dsh web 界面**，全部点按钮完成。
 
+## 快速开始（直接使用成品 exe）
+
+> **不需要自己构建**，成品 exe 已随仓库发布，直接下载使用。
+
+### 1. 下载 exe（二选一）
+
+| 文件（在仓库 `release/` 目录） | 说明 |
+|---|---|
+| `DeepSeek Harness Manager 0.1.0.exe` | **便携版**：双击即用，免安装，可放 U 盘 |
+| `DeepSeek Harness Manager Setup 0.1.0.exe` | **安装版**：安装到开始菜单/桌面 |
+
+### 2. 前置准备（只有一步必须）
+
+管理器**不内置** deepseek-harness 源码（否则 exe 会大 1.4GB），它管理的是**本机的官方源码目录**。请先克隆官方源码（MIT 开源）：
+
+```powershell
+git clone https://github.com/deepseek-ai/deepseek-harness %USERPROFILE%\deepseek-harness
+```
+
+> 建议克隆到 `%USERPROFILE%\deepseek-harness`——管理器会自动探测到这个路径；放别处则在「设置」页手动选择。
+> 另需：Windows 10/11（64 位）、Node.js ≥ 22.19、pnpm、PowerShell（dsh 运行要求）。
+
+### 3. 首次使用（5 步）
+
+```
+① 双击便携版 exe（SmartScreen 提示时点「更多信息 → 仍要运行」）
+② 打开「设置」页，确认仓库路径已指向 deepseek-harness 源码
+③ 「构建」页 → 安装依赖（首次必做，之后可跳过）
+④ 「构建」页 → 一键构建（把源码编译成可运行程序）
+⑤ 「运行」页 → 启动 → 打开桌面窗口（进入 dsh 界面）
+```
+
 ## 功能
 
 | 页签 | 功能 |
