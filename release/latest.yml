@@ -1,8 +1,8 @@
-version: 0.1.0
+version: 0.1.1
 files:
-  - url: DeepSeek-Harness-Manager-Setup-0.1.0.exe
-    sha512: mvF66hdyOx+6oJV4yoBTi19L4DPH+Pk3lsSlahx5QCOzHndf2zhetpWpLeu6P706cJpvrmK2iFnNGorBJAX2Vg==
-    size: 86013683
-path: DeepSeek-Harness-Manager-Setup-0.1.0.exe
-sha512: mvF66hdyOx+6oJV4yoBTi19L4DPH+Pk3lsSlahx5QCOzHndf2zhetpWpLeu6P706cJpvrmK2iFnNGorBJAX2Vg==
-releaseDate: '2026-08-16T06:34:01.842Z'
+  - url: DeepSeek-Harness-Manager-Setup-0.1.1.exe
+    sha512: 1LhYbDsYh93rnXxoJiBON8utNGNRg76MwDIdi3gYrvR8QXXXWhsx8gcobbz/nGR1CLEEnKKDo8+3eynoTLwtuw==
+    size: 86016003
+path: DeepSeek-Harness-Manager-Setup-0.1.1.exe
+sha512: 1LhYbDsYh93rnXxoJiBON8utNGNRg76MwDIdi3gYrvR8QXXXWhsx8gcobbz/nGR1CLEEnKKDo8+3eynoTLwtuw==
+releaseDate: '2026-08-18T15:38:16.681Z'

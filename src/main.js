@@ -41,6 +41,40 @@ function log(text, kind = 'out') { send('mgr:log', { ts: new Date().toLocaleTime
 function emit(name, payload = {}) { send('mgr:event', { name, ...payload }) }
 function notify(kind, title, detail = '') { emit('notify', { kind, title, detail }) }
 
+/* ================= 子进程输出编码 ================= */
+// git/pnpm/node 输出 UTF-8；中文 Windows（代码页 936）上 cmd/控制台程序输出 ANSI(GBK)。
+// 策略：按行先严格 UTF-8 解码，失败则回退 GBK——ASCII 在两种编码下解码结果一致，混流安全。
+const decUtf8Strict = new TextDecoder('utf-8', { fatal: true })
+let decGbk = null
+try { decGbk = new TextDecoder('gbk') } catch { /* 极少数无 ICU 环境：GBK 回退不可用，保留 UTF-8 结果 */ }
+function decodeBuffer(buf) {
+  if (!buf || !buf.length) return ''
+  try { return decUtf8Strict.decode(buf) }
+  catch { return decGbk ? decGbk.decode(buf) : buf.toString('utf8') }
+}
+/** 流式解码器：跨 chunk 保留未完成行，完整行按 UTF-8/GBK 智能解码（0x0A 不会出现在 GBK 字符内部，按行切分安全） */
+function createSmartDecoder() {
+  let pending = Buffer.alloc(0)
+  return {
+    decode(chunk) {
+      pending = Buffer.concat([pending, chunk])
+      let out = ''
+      let idx
+      while ((idx = pending.indexOf(0x0a)) !== -1) {
+        const line = pending.subarray(0, idx + 1)
+        pending = pending.subarray(idx + 1)
+        out += decodeBuffer(line)
+      }
+      return out
+    },
+    flush() {
+      const tail = decodeBuffer(pending)
+      pending = Buffer.alloc(0)
+      return tail
+    },
+  }
+}
+
 /* ================= 子进程封装 ================= */
 let activeProc = null
 let cmdSeq = 0
@@ -58,31 +92,46 @@ function runCmd(cmd, args, opts = {}) {
     const display = `$ ${cmd} ${args.join(' ')}`
     log(display, 'cmd')
     emit('cmd-start', { id, cmd: display, start: new Date().toLocaleTimeString() })
+    // cmd-end 只发一次（spawn error 与 close 可能先后触发）
+    let ended = false
+    const endCmd = (payload) => { if (ended) return; ended = true; emit('cmd-end', payload) }
+    /** 失败收尾：发 cmd-end，并给错误打 cmdEnded 标记（wrap 据此不重复弹 notify 横幅） */
+    const fail = (err, extra = {}) => {
+      err.cmdEnded = true
+      endCmd({ id, ok: false, durationMs: Date.now() - start, error: err.message, ...extra })
+      reject(err)
+    }
     let child
     try {
       child = spawn(fullCmd, args, {
         cwd: opts.cwd, env: { ...process.env, ...opts.env },
         shell: useShell, windowsHide: true,
       })
-    } catch (e) { emit('cmd-end', { id, ok: false, durationMs: Date.now() - start, error: e.message }); reject(e); return }
+    } catch (e) { fail(e); return }
     activeProc = child
-    const onData = (buf, kind) => {
-      const text = buf.toString().replace(/\r?\n$/, '')
+    const decOut = createSmartDecoder()
+    const decErr = createSmartDecoder()
+    const onData = (dec, buf, kind) => {
+      const text = dec.decode(buf).replace(/\r?\n$/, '')
       if (text) { log(text, kind); if (opts.onLine) opts.onLine(text) }
     }
-    child.stdout.on('data', (b) => onData(b, 'out'))
-    child.stderr.on('data', (b) => onData(b, 'err'))
+    child.stdout.on('data', (b) => onData(decOut, b, 'out'))
+    child.stderr.on('data', (b) => onData(decErr, b, 'err'))
     child.on('error', (e) => {
       activeProc = null
-      emit('cmd-end', { id, ok: false, durationMs: Date.now() - start, error: e.message })
-      reject(e)
+      fail(e)
     })
     child.on('close', (code) => {
       activeProc = null
+      // 冲刷未以换行结尾的剩余输出
+      const tailOut = decOut.flush().replace(/\r?\n$/, '')
+      const tailErr = decErr.flush().replace(/\r?\n$/, '')
+      if (tailOut) log(tailOut, 'out')
+      if (tailErr) log(tailErr, 'err')
+      if (ended) return // 已由 error 分支收尾
       const durationMs = Date.now() - start
-      emit('cmd-end', { id, ok: code === 0, durationMs, code })
-      if (code === 0) resolve({ code, durationMs })
-      else reject(Object.assign(new Error(`命令退出码 ${code}`), { code, durationMs }))
+      if (code === 0) { endCmd({ id, ok: true, durationMs, code }); resolve({ code, durationMs }) }
+      else fail(Object.assign(new Error(`命令退出码 ${code}`), { code, durationMs }), { code, durationMs })
     })
   })
 }
@@ -98,8 +147,8 @@ function cancelActive() {
 /* ================= Git 服务 ================= */
 function gitSync(args) {
   try {
-    const r = spawnSync('git', ['-c', 'safe.directory=*', ...args], { cwd: settings.repoPath, encoding: 'utf8', windowsHide: true })
-    return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() }
+    const r = spawnSync('git', ['-c', 'safe.directory=*', ...args], { cwd: settings.repoPath, encoding: 'buffer', windowsHide: true })
+    return { ok: r.status === 0, out: decodeBuffer(r.stdout).trim(), err: decodeBuffer(r.stderr).trim() }
   } catch (e) { return { ok: false, out: '', err: String(e) } }
 }
 async function gitRun(args) { return runCmd('git', ['-c', 'safe.directory=*', ...args], { cwd: settings.repoPath }) }
@@ -129,8 +178,9 @@ function getVersions() {
   const r = gitSync(['log', '--grep=release(dsh)', '--format=%h|%ad|%s', '--date=short'])
   if (!r.ok || !r.out) return []
   return r.out.split('\n').map((line) => {
-    const [hash, date, , , version] = line.split('|')
-    return { hash, date, version: version || '' }
+    // %h|%ad|%s 只有 3 段，版本号在提交信息里（release(dsh): x.y.z）
+    const [hash, date, subject] = line.split('|')
+    return { hash, date, version: (subject || '').replace(/^release\(dsh\):\s*/, '') }
   })
 }
 async function gitFetch() { return gitRun(['fetch', '--all', '--prune']) }
@@ -171,11 +221,13 @@ async function gitSyncToUpstream() {
   const backup = `backup/${stamp}`
   // 1) 备份当前状态（无论是否干净）
   await gitRun(['branch', backup])
-  // 2) 确保在 master（detached 时切过去）
+  // 2) 先获取远程最新，确保对齐的是最新官方（而非上次 fetch 的快照）
+  await gitRun(['fetch', 'origin'])
+  // 3) 确保在 master（detached 时切过去）
   const cur = gitSync(['rev-parse', '--abbrev-ref', 'HEAD']).out
   if (cur && cur !== 'master' && cur !== '(detached)') await gitRun(['checkout', 'master'])
   if (!cur || cur === '(detached)') await gitRun(['checkout', 'master'])
-  // 3) 强制对齐远程
+  // 4) 强制对齐远程
   await gitRun(['reset', '--hard', 'origin/master'])
   return { backup, dirtyCount, ahead }
 }
@@ -223,8 +275,10 @@ function startDsh() {
       try { child.kill() } catch { /* noop */ }
       reject(new Error('启动超时：20 秒内未收到 dsh web 地址'))
     }, 20000)
+    const decOut = createSmartDecoder()
+    const decErr = createSmartDecoder()
     const onOut = (buf) => {
-      const text = buf.toString()
+      const text = decOut.decode(buf)
       log(text.trimEnd(), 'out')
       const m = text.match(/dsh web: (https?:\/\/[^\s]+)/)
       if (m && !settled) {
@@ -237,7 +291,7 @@ function startDsh() {
       }
     }
     child.stdout.on('data', onOut)
-    child.stderr.on('data', (b) => log(b.toString().trimEnd(), 'err'))
+    child.stderr.on('data', (b) => log(decErr.decode(b).trimEnd(), 'err'))
     child.on('error', (e) => { if (!settled) { settled = true; clearTimeout(timer); reject(e) } })
     child.on('close', (code) => {
       dsh.proc = null
@@ -259,7 +313,8 @@ function openDshWindow() {
   if (windows.dsh && !windows.dsh.isDestroyed()) { windows.dsh.focus(); return }
   windows.dsh = new BrowserWindow({
     width: 1280, height: 860, title: 'DeepSeek Harness', autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
+    // 不挂 preload：dsh web 是本地服务内容，不应暴露管理器的 dshManager IPC（防 XSS 越权）
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
   windows.dsh.loadURL(dsh.url)
   windows.dsh.on('closed', () => { windows.dsh = null })
@@ -301,7 +356,12 @@ function registerIpc() {
   // 统一包装：捕获异常返回 { ok:false, error }，并推送红色横幅
   const wrap = (fn) => async () => {
     try { return { ok: true, data: await fn() } }
-    catch (e) { log(e.message, 'err'); notify('error', '操作失败', e.message); return { ok: false, error: e.message } }
+    catch (e) {
+      log(e.message, 'err')
+      // 命令类失败已由 cmd-end 事件推送横幅，这里避免重复弹
+      if (!e.cmdEnded) notify('error', '操作失败', e.message)
+      return { ok: false, error: e.message }
+    }
   }
   ipcMain.handle('mgr:getSettings', () => settings)
   ipcMain.handle('mgr:saveSettings', (_e, s) => { settings = { ...settings, ...s }; saveSettings(); return settings })
@@ -353,7 +413,10 @@ if (!app.requestSingleInstanceLock()) {
     windows.main.loadFile(path.join(__dirname, 'renderer', 'index.html'))
     windows.main.on('closed', () => { windows.main = null })
     windows.main.webContents.setWindowOpenHandler(({ url }) => {
-      if (url.startsWith('http://127.0.0.1') || url.startsWith('http://localhost')) { openDshWindow(); return { action: 'deny' } }
+      // 精确匹配 hostname，避免 http://127.0.0.1.evil.com 这类前缀伪造绕过
+      let host = ''
+      try { host = new URL(url).hostname } catch { /* 非法 URL 按外部链接处理 */ }
+      if (host === '127.0.0.1' || host === 'localhost') { openDshWindow(); return { action: 'deny' } }
       shell.openExternal(url)
       return { action: 'deny' }
     })

@@ -15,8 +15,8 @@
 
 | File (in the repository `release/` folder) | Description |
 |---|---|
-| `DeepSeek Harness Manager 0.1.0.exe` | **Portable**: double-click to run, no installation, works from a USB drive |
-| `DeepSeek Harness Manager Setup 0.1.0.exe` | **Installer**: installs to Start Menu / Desktop |
+| `DeepSeek Harness Manager 0.1.1.exe` | **Portable**: double-click to run, no installation, works from a USB drive |
+| `DeepSeek Harness Manager Setup 0.1.1.exe` | **Installer**: installs to Start Menu / Desktop |
 
 ### 2. Prerequisite (only one required step)
 
@@ -100,6 +100,10 @@ dsh-desktop/
 │   └── renderer/         # Renderer (index.html / style.css / renderer.js)
 └── release/              # Packaged output (electron-builder)
 ```
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for all version changes.
 
 ## License
 

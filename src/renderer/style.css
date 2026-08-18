@@ -10,7 +10,7 @@
   --red: #f0616d;
   --yellow: #e5c07b;
   --border: #3a3a52;
-  --mono: 'Cascadia Code', Consolas, 'Courier New', monospace;
+  --mono: 'Cascadia Code', Consolas, 'Courier New', 'Microsoft YaHei', monospace;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }

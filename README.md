@@ -13,8 +13,8 @@
 
 | 文件（在仓库 `release/` 目录） | 说明 |
 |---|---|
-| `DeepSeek Harness Manager 0.1.0.exe` | **便携版**：双击即用，免安装，可放 U 盘 |
-| `DeepSeek Harness Manager Setup 0.1.0.exe` | **安装版**：安装到开始菜单/桌面 |
+| `DeepSeek Harness Manager 0.1.1.exe` | **便携版**：双击即用，免安装，可放 U 盘 |
+| `DeepSeek Harness Manager Setup 0.1.1.exe` | **安装版**：安装到开始菜单/桌面 |
 
 ### 2. 前置准备（只有一步必须）
 
@@ -97,6 +97,10 @@ dsh-desktop/
 │   └── renderer/         # 渲染层（index.html / style.css / renderer.js）
 └── release/              # 打包产物（electron-builder 输出）
 ```
+
+## 更新日志
+
+版本变更见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## License
 

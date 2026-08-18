@@ -7,4 +7,5 @@ dist/
 release/win-unpacked/
 release/.icon-ico/
 release/*.blockmap
+release/*.7z
 release/builder-debug.yml

@@ -47,6 +47,15 @@ function setStatus(text, cls = '') {
   dot.className = 'status-dot' + (cls ? ' ' + cls : '')
 }
 
+/**
+ * 统一的失败/取消反馈：一次用户操作至多出一条横幅。
+ * 事件层（cmd-end/notify）不再弹横幅，失败/取消统一由调用方经此函数呈现，杜绝重复弹条。
+ */
+function opFail(label, res) {
+  if (state.cancelRequested) banner('cancel', label + '已取消', res && res.error)
+  else banner('error', label + '失败', res && res.error)
+}
+
 /* ================= 日志面板 ================= */
 function appendLog(line) {
   const el = document.createElement('div')
@@ -182,7 +191,7 @@ function openCheckoutModal(v) {
     setStatus('正在切换版本 ' + v.version + '…', 'busy')
     const res = await dshManager.checkout(v.hash, branch)
     if (res.ok) banner('success', '已切换到 ' + v.version, branch ? '新分支：' + branch : 'detached HEAD：' + v.hash)
-    else banner('error', '切换失败', res.error)
+    else opFail('切换', res)
     refreshAll()
   })
   // 单选切换时显示/隐藏分支输入
@@ -225,7 +234,7 @@ function openBranchModal(b) {
     setStatus('正在切换分支 ' + ref + '…', 'busy')
     const res = await dshManager.checkout(ref, '')
     if (res.ok) banner('success', '已切换到分支 ' + ref)
-    else banner('error', '切换失败', res.error)
+    else opFail('切换', res)
     refreshAll()
   })
 }
@@ -248,7 +257,7 @@ function openSyncModal() {
     if (res.ok) {
       const d = res.data
       banner('success', '已恢复与官方一致', '备份分支：' + d.backup + '（如需找回改动请切回该分支）')
-    } else banner('error', '回滚失败', res.error)
+    } else opFail('回滚', res)
     refreshAll()
   })
 }
@@ -291,22 +300,14 @@ dshManager.onEvent((ev) => {
       break
     case 'cmd-end': {
       const dur = fmtDuration(ev.durationMs)
+      // 失败/取消横幅由调用方 opFail 统一呈现，事件层只更新状态，避免重复弹条
       if (!ev.ok) {
-        if (state.cancelRequested) {
-          banner('cancel', '操作已取消', ev.cmd.replace(/^\$ /, '') + '（' + dur + '）')
-          setStatus('已取消', '')
-        } else {
-          banner('error', '操作失败', ev.cmd.replace(/^\$ /, '') + ' 退出码 ' + ev.code + '（' + dur + '），详见日志面板')
-          setStatus('执行失败', 'err')
-        }
+        setStatus(state.cancelRequested ? '已取消' : '执行失败', state.cancelRequested ? '' : 'err')
       } else {
         setStatus('执行完成（' + dur + '）', 'ok')
       }
       break
     }
-    case 'notify':
-      banner(ev.kind === 'error' ? 'error' : 'success', ev.title, ev.detail)
-      break
     case 'dsh-booting':
       setStatus('正在启动 dsh web（Node ' + ev.node + '）…', 'busy')
       banner('cancel', '正在启动 dsh web…', '自动分配空闲端口，请稍候（最多 20 秒）')
@@ -362,7 +363,7 @@ bind('btnCloneRepo', withBusy(['btnCloneRepo', 'btnChooseRepoMissing'], async ()
   setStatus('正在克隆官方源码…', 'busy')
   const res = await dshManager.cloneRepo(target)
   if (res.ok) banner('success', '克隆完成', '仓库已就绪：' + res.data)
-  else banner('error', '克隆失败', res.error)
+  else opFail('克隆', res)
   refreshAll()
 }))
 bind('btnOpenRepo', () => dshManager.openRepo())
@@ -388,7 +389,7 @@ bind('btnFetchOverview', withBusy(['btnFetchOverview', 'btnFetch'], async () => 
   if (res.ok) {
     const st = (await dshManager.getStatus()).data
     banner('success', '已获取远程最新信息', '当前 领先 ' + st.ahead + ' / 落后 ' + st.behind + (Number(st.behind) > 0 ? '，可到 Git 页点「拉取」升级' : '，已是最新'))
-  } else banner('error', '更新失败', res.error)
+  } else opFail('更新', res)
 }))
 bind('btnSyncUpstream', () => openSyncModal())
 
@@ -404,29 +405,29 @@ bind('btnFetch', withBusy(['btnFetch', 'btnFetchOverview'], async () => {
   if (res.ok) {
     const st = (await dshManager.getStatus()).data
     banner('success', '已获取远程最新信息', '当前 领先 ' + st.ahead + ' / 落后 ' + st.behind + (Number(st.behind) > 0 ? '，可点「拉取」升级' : '，已是最新'))
-  } else banner('error', '更新失败', res.error)
+  } else opFail('更新', res)
 }))
 bind('btnPull', withBusy(['btnPull'], async () => {
   const res = await dshManager.gitPull()
   if (res.ok) banner('success', '拉取成功', '源码已更新到远程最新（快进合并，无冲突）')
-  else banner('error', '拉取失败', res.error + '（详见日志面板）')
+  else opFail('拉取', res)
 }))
 
 // 构建页
 bind('btnInstall', withBusy(['btnInstall', 'btnBuild', 'btnClean'], async () => {
   const res = await dshManager.runInstall()
   if (res.ok) banner('success', '依赖安装完成', '耗时 ' + fmtDuration(res.data && res.data.durationMs) + '，详见日志面板')
-  else banner('error', '安装失败', res.error)
+  else opFail('安装', res)
 }))
 bind('btnBuild', withBusy(['btnInstall', 'btnBuild', 'btnClean'], async () => {
   const res = await dshManager.runBuild()
   if (res.ok) banner('success', '构建成功', '耗时 ' + fmtDuration(res.data && res.data.durationMs) + '，产物已更新（概览页徽章已刷新）')
-  else banner('error', '构建失败', res.error + '，详见日志面板（红色行为错误）')
+  else opFail('构建', res)
 }))
 bind('btnClean', withBusy(['btnInstall', 'btnBuild', 'btnClean'], async () => {
   const res = await dshManager.runClean()
   if (res.ok) banner('success', '清理完成', '构建产物已删除，如需运行请重新「一键构建」')
-  else banner('error', '清理失败', res.error)
+  else opFail('清理', res)
 }))
 bind('btnCancelBuild', () => {
   state.cancelRequested = true
@@ -439,15 +440,15 @@ bind('btnCancelBuild', () => {
 bind('btnStartDsh', withBusy(['btnStartDsh'], async () => {
   const res = await dshManager.startDsh()
   if (res.ok) {
+    // 成功横幅由 dsh-started 事件统一弹出，这里不再重复
     state.dshRunning = true
     state.dshUrl = res.data.url
     renderRun()
-    banner('success', 'dsh web 已启动', res.data.url)
-  } else banner('error', '启动失败', res.error)
+  } else opFail('启动', res)
 }))
 bind('btnOpenDshWindow', async () => {
   const res = await dshManager.openDshWindow()
-  if (!res.ok) banner('error', '无法打开窗口', res.error)
+  if (!res.ok) opFail('打开窗口', res)
 })
 bind('btnOpenDshBrowser', () => dshManager.openDshBrowser())
 bind('btnStopDsh', async () => {
@@ -543,7 +544,7 @@ function helpHtml() {
 <h4>为什么启动前提示"未构建"？</h4>
 <p>需要先在「构建」页执行「一键构建」，生成 apps\\cli\\lib 与 apps\\web\\dist 后才可运行。</p>
 <h3>8. 关于</h3>
-<p>版本：0.1.0　|　数据目录（DSH_HOME）：见「设置」页　|　管理器日志：见底部日志面板（可复制）。</p>
+<p>版本：0.1.1　|　数据目录（DSH_HOME）：见「设置」页　|　管理器日志：见底部日志面板（可复制）。</p>
 <p>本项目仅管理仓库与启动 dsh，dsh 本身的会话、API Key、插件均沿用你现有的 DSH_HOME 数据目录。</p>
 `
 }

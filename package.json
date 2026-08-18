@@ -1,7 +1,7 @@
 {
   "name": "dsh-manager",
   "productName": "DeepSeek Harness Manager",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Windows desktop manager for the deepseek-harness source repository: git versions, updates, builds, and launching the dsh web UI.",
   "main": "src/main.js",
   "license": "MIT",
