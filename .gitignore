@@ -9,3 +9,4 @@ release/.icon-ico/
 release/*.blockmap
 release/*.7z
 release/builder-debug.yml
+release/latest.yml

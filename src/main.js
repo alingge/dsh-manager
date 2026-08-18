@@ -317,6 +317,14 @@ function openDshWindow() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
   windows.dsh.loadURL(dsh.url)
+  // 同源弹窗放行（dsh 自身功能），外链一律交给系统浏览器，不产生无沙箱的新 Electron 窗口
+  windows.dsh.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      if (new URL(url).host === new URL(dsh.url).host) return { action: 'allow' }
+    } catch { /* 非法 URL 按外部链接处理 */ }
+    shell.openExternal(url)
+    return { action: 'deny' }
+  })
   windows.dsh.on('closed', () => { windows.dsh = null })
 }
 function openDshBrowser() { if (dsh.url) shell.openExternal(dsh.url) }

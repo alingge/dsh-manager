@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron .",
     "build": "npm install --no-audit --no-fund && node scripts/gen-icon.mjs && npm run dist",
-    "dist": "electron-builder --win portable nsis",
+    "dist": "electron-builder --win portable nsis --publish never",
     "dist:portable": "electron-builder --win portable",
     "dist:installer": "electron-builder --win nsis"
   },

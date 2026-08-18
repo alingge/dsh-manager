@@ -1,6 +1,6 @@
 # 🖥️ DeepSeek Harness — Windows 桌面版管理器
 
-![平台](https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-Windows_10%2F11-0078D6) ![技术](https://img.shields.io/badge/%E6%8A%80%E6%9C%AF-Electron_37-47848F) ![dsh](https://img.shields.io/badge/dsh-0.1.0--rc.5-4CC38A) ![发布](https://img.shields.io/badge/%E5%8F%91%E5%B8%83-portable_%2B_installer-orange) ![CI](https://img.shields.io/github/actions/workflow/status/alingge/dsh-manager/build.yml)
+![平台](https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-Windows_10%2F11-0078D6) ![技术](https://img.shields.io/badge/%E6%8A%80%E6%9C%AF-Electron_37-47848F) ![dsh](https://img.shields.io/badge/dsh-0.1.0--rc.7-4CC38A) ![发布](https://img.shields.io/badge/%E5%8F%91%E5%B8%83-portable_%2B_installer-orange) ![CI](https://img.shields.io/github/actions/workflow/status/alingge/dsh-manager/build.yml)
 
 > **DeepSeek Harness 的 Windows 桌面版** —— 不用记命令行，可视化地管理官方源码仓库：
 > **git 版本查看/切换 · 源码更新 · 一键构建 · 启动 dsh web 界面**，全部点按钮完成。
